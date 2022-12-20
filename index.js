@@ -49,4 +49,6 @@ for (const file of commandFiles) {
   }
 }
 
+client.queue = new Map();
+
 client.login(token);

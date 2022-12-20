@@ -1,19 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const {
-  joinVoiceChannel,
-  entersState,
-  VoiceConnectionStatus,
-  createAudioPlayer,
-  getVoiceConnection,
-  createAudioResource,
-  AudioPlayerStatus,
-  StreamType,
-} = require("@discordjs/voice");
-const path = require("node:path");
-const { createReadStream } = require("node:fs");
-const ytdl = require("ytdl-core-discord");
-const sendError = require("../error/error");
-const yts = require("yt-search");
+const { SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()

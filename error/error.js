@@ -10,5 +10,5 @@ module.exports = async (text, channel) => {
     .setColor("0xFF0000")
     .setDescription(text)
     .setFooter({ text: "Something went wrong :(" });
-  await channel.send({ embeds: [embed] });
+  await channel.editReply({ embeds: [embed] });
 };

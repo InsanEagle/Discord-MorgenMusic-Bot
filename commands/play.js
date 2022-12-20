@@ -1,16 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const {
   joinVoiceChannel,
-  entersState,
   VoiceConnectionStatus,
   createAudioPlayer,
-  getVoiceConnection,
   createAudioResource,
   AudioPlayerStatus,
-  StreamType,
 } = require("@discordjs/voice");
-const path = require("node:path");
-const { createReadStream } = require("node:fs");
 const ytdl = require("ytdl-core-discord");
 const sendError = require("../error/error");
 const yts = require("yt-search");
@@ -21,38 +16,34 @@ module.exports = {
     .setDescription("Playing music")
     .addStringOption((option) =>
       option
-        .setName("songname")
-        .setDescription("Input songname to play")
+        .setName("song")
+        .setDescription("Input song to play")
         .setRequired(true)
     ),
   async execute(interaction) {
+    await interaction.deferReply();
+
     let channel = interaction.member.voice.channel;
+    const serverQueue = interaction.client.queue.get(interaction.guild.id);
 
     if (!channel) {
-      return sendError(
+      sendError(
         "I'm sorry but you need to be in a voice channel to play music!",
-        interaction.channel
+        interaction
       );
+      return;
     }
 
-    const connection = joinVoiceChannel({
-      channelId: interaction.member.voice.channel.id,
-      guildId: interaction.guild.id,
-      adapterCreator: interaction.guild.voiceAdapterCreator,
-    });
-
-    let songname = interaction.options.getString("songname");
+    let songname = interaction.options.getString("song");
     let searched = await yts.search(songname);
 
     if (searched.videos.length === 0) {
-      return sendError(
+      sendError(
         "Looks like i was unable to find the song on YouTube",
-
-        interaction.channel
+        interaction
       );
+      return;
     }
-
-    interaction.reply(`Searching: ${songname}`);
 
     let song = null;
     let songInfo = null;
@@ -71,65 +62,95 @@ module.exports = {
       req: interaction.member,
     };
 
-    const songEmbed = new EmbedBuilder()
-      .setColor(0x0099ff)
-      .setTitle(`${song.title}`)
-      .setURL(`${song.url}`)
-      .setAuthor({
-        name: "Морген Штерн",
-        iconURL: song.img,
-        url: song.img,
-      })
-      .setDescription(`Duration: ${song.duration}`)
-      .setThumbnail(song.img)
-      .addFields(
-        { name: "Views", value: song.views },
-        { name: "\u200B", value: "\u200B" },
-        { name: "У У У У", value: "А А А А", inline: true },
-        { name: "У У У У", value: "А А А А", inline: true }
-      )
-      .addFields({
-        name: "У У У У",
-        value: "А А А А",
-        inline: true,
-      })
-      .setImage(song.img)
-      .setTimestamp()
-      .setFooter({
-        text: "Найс музычка",
-        iconURL: song.img,
+    if (serverQueue) {
+      serverQueue.songs.push(song);
+
+      let embed = new EmbedBuilder()
+        .setColor("0x0099ff")
+        .setDescription(
+          `Song **${
+            serverQueue.songs[serverQueue.songs.length - 1].title
+          }** added to queue`
+        );
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    const queueConstruct = {
+      textChannel: interaction.channel,
+      voiceChannel: channel,
+      connection: null,
+      player: null,
+      songs: [],
+      playing: true,
+      loop: false,
+    };
+
+    interaction.client.queue.set(interaction.guild.id, queueConstruct);
+
+    queueConstruct.songs.push(song);
+
+    const play = async (song, followUp) => {
+      const queue = interaction.client.queue.get(interaction.guild.id);
+
+      if (!song) {
+        interaction.client.queue.delete(interaction.guild.id);
+        return;
+      }
+
+      let stream;
+      let resource;
+      let player = createAudioPlayer();
+
+      queueConstruct.player = player;
+
+      try {
+        stream = await ytdl(song.url, {
+          quality: "highestaudio",
+
+          highWaterMark: 1 << 25,
+
+          type: "opus",
+        });
+
+        resource = createAudioResource(stream);
+
+        stream.on("error", function (er) {
+          if (er) {
+            if (queue) {
+              queue.songs.shift();
+              play(queue.songs[0]);
+
+              sendError(
+                `An unexpected error has occurred.\nPossible type \`${er}\``,
+                interaction
+              );
+              return;
+            }
+          }
+        });
+      } catch (error) {
+        if (queue) {
+          queue.songs.shift();
+          play(queue.songs[0]);
+        }
+      }
+
+      queue.connection.on(VoiceConnectionStatus.Disconnected, () => {
+        interaction.client.queue.delete(interaction.guild.id);
       });
 
-    await interaction.channel.send({ embeds: [songEmbed] });
+      player.on(AudioPlayerStatus.Idle, () => {
+        const shiffed = queue.songs.shift();
 
-    let stream = await ytdl(song.url, {
-      quality: "highestaudio",
+        if (queue.loop === true) {
+          queue.songs.push(shiffed);
+        }
 
-      highWaterMark: 1 << 25,
+        play(queue.songs[0], true);
+      });
 
-      type: "opus",
-    });
-
-    const player = createAudioPlayer();
-
-    let resource = createAudioResource(stream);
-
-    player.play(resource);
-    connection.subscribe(player);
-
-    player.on(AudioPlayerStatus.Idle, async () => {
-      songInfo = searched.videos[songNumber];
-
-      song = {
-        id: songInfo.videoId,
-        title: songInfo.title,
-        views: String(songInfo.views).padStart(10, " "),
-        url: songInfo.url,
-        ago: songInfo.ago,
-        duration: songInfo.duration.toString(),
-        img: songInfo.image,
-        req: interaction.member,
-      };
+      player.play(resource);
+      queue.connection.subscribe(player);
 
       const songEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
@@ -140,19 +161,12 @@ module.exports = {
           iconURL: song.img,
           url: song.img,
         })
-        .setDescription(`Duration: ${song.duration}`)
+        .setDescription(`${song.duration.slice(song.duration.indexOf("("))}`)
         .setThumbnail(song.img)
         .addFields(
           { name: "Views", value: song.views },
-          { name: "\u200B", value: "\u200B" },
-          { name: "У У У У", value: "А А А А", inline: true },
-          { name: "У У У У", value: "А А А А", inline: true }
+          { name: "\u200B", value: "\u200B" }
         )
-        .addFields({
-          name: "У У У У",
-          value: "А А А А",
-          inline: true,
-        })
         .setImage(song.img)
         .setTimestamp()
         .setFooter({
@@ -160,21 +174,32 @@ module.exports = {
           iconURL: song.img,
         });
 
-      await interaction.channel.send({ embeds: [songEmbed] });
+      if (!followUp) {
+        await interaction.editReply({ embeds: [songEmbed] });
+      } else {
+        await interaction.followUp({ embeds: [songEmbed] });
+      }
+    };
 
-      ++songNumber;
-
-      stream = await ytdl(searched.videos[songNumber].url, {
-        quality: "highestaudio",
-
-        highWaterMark: 1 << 25,
-
-        type: "opus",
+    try {
+      const connection = joinVoiceChannel({
+        channelId: interaction.member.voice.channel.id,
+        guildId: interaction.guild.id,
+        adapterCreator: interaction.guild.voiceAdapterCreator,
       });
 
-      resource = createAudioResource(stream);
+      queueConstruct.connection = connection;
 
-      player.play(resource);
-    });
+      play(queueConstruct.songs[0]);
+    } catch (error) {
+      console.error(`I could not join the voice channel: ${error}`);
+
+      interaction.client.queue.delete(interaction.guild.id);
+
+      await channel.leave();
+
+      sendError(`I could not join the voice channel: ${error}`, interaction);
+      return;
+    }
   },
 };
