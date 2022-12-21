@@ -42,7 +42,7 @@ module.exports = {
       .setFooter({
         text: "MorgenMusic",
         iconURL:
-          "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/84607b7926420b1e26d154aad4d4aff2.jpg",
+          "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/morgenmusic.jpg",
       });
 
     await interaction.editReply({ embeds: [queueEmbed] });

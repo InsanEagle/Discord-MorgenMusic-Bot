@@ -35,8 +35,15 @@ module.exports = {
     }
 
     let songname = interaction.options.getString("song");
-    console.log("Searching song");
-    let searched = await yts.search(songname);
+    console.log(`Searching song at server: ${interaction.guild.id}`);
+
+    let searched;
+    try {
+      searched = await yts.search(songname);
+    } catch {
+      sendError(`Couldn't find a song. Try again`, interaction);
+      return;
+    }
 
     if (searched.videos.length === 0) {
       sendError(
@@ -67,7 +74,7 @@ module.exports = {
 
     if (serverQueue) {
       serverQueue.songs.push(song);
-      console.log("Song added to queue");
+      console.log(`Song added to queue at server: ${interaction.guild.id}`);
 
       let embed = new EmbedBuilder()
         .setColor("0x0099ff")
@@ -75,7 +82,14 @@ module.exports = {
           `Song **${
             serverQueue.songs[serverQueue.songs.length - 1].title
           }** added to queue`
-        );
+        )
+        .setTimestamp()
+        .setFooter({
+          text: "MorgenMusic",
+          iconURL:
+            "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/morgenmusic.jpg",
+        });
+
       return await interaction.editReply({ embeds: [embed] });
     }
 
@@ -108,7 +122,7 @@ module.exports = {
       queueConstruct.player = player;
 
       try {
-        console.log("Creating audio stream");
+        console.log(`Creating audio stream at server: ${interaction.guild.id}`);
         stream = await ytdl(song.url, {
           quality: "highestaudio",
 
@@ -145,7 +159,7 @@ module.exports = {
       });
 
       player.on(AudioPlayerStatus.Idle, () => {
-        console.log("Player is idle");
+        console.log(`Player is idle at server: ${interaction.guild.id}`);
         const shiffed = queue.songs.shift();
 
         if (queue.loop === true) {
@@ -155,26 +169,26 @@ module.exports = {
         play(queue.songs[0], true);
       });
 
-      console.log("Playing song");
-      player.play(resource);
+      console.log(`Playing song at server: ${interaction.guild.id}`);
+      try {
+        player.play(resource);
+      } catch {
+        sendError(`Couldn't play a song. Try again`, interaction);
+        return;
+      }
       queue.connection.subscribe(player);
 
       const songEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
         .setTitle(`${song.title} (${song.timestamp})`)
         .setURL(`${song.url}`)
-        .setAuthor({
-          name: "MorgenMusic",
-          iconURL:
-            "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/84607b7926420b1e26d154aad4d4aff2.jpg",
-        })
         .setDescription(`Views: ${song.views}`)
         .setImage(song.img)
         .setTimestamp()
         .setFooter({
           text: "MorgenMusic",
           iconURL:
-            "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/84607b7926420b1e26d154aad4d4aff2.jpg",
+            "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/morgenmusic.jpg",
         });
 
       if (!followUp) {
