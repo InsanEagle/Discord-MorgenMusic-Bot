@@ -35,6 +35,7 @@ module.exports = {
     }
 
     let songname = interaction.options.getString("song");
+    console.log("Searching song");
     let searched = await yts.search(songname);
 
     if (searched.videos.length === 0) {
@@ -47,23 +48,26 @@ module.exports = {
 
     let song = null;
     let songInfo = null;
-    let songNumber = 0;
 
-    songInfo = searched.videos[songNumber];
+    songInfo = searched.videos[0];
 
     song = {
       id: songInfo.videoId,
       title: songInfo.title,
-      views: String(songInfo.views).padStart(10, " "),
+      views: String(songInfo.views)
+        .padStart(10, " ")
+        .replace(/\B(?=(\d{3})+(?!\d))/g, " "),
       url: songInfo.url,
       ago: songInfo.ago,
       duration: songInfo.duration.toString(),
+      timestamp: songInfo.timestamp,
       img: songInfo.image,
       req: interaction.member,
     };
 
     if (serverQueue) {
       serverQueue.songs.push(song);
+      console.log("Song added to queue");
 
       let embed = new EmbedBuilder()
         .setColor("0x0099ff")
@@ -104,6 +108,7 @@ module.exports = {
       queueConstruct.player = player;
 
       try {
+        console.log("Creating audio stream");
         stream = await ytdl(song.url, {
           quality: "highestaudio",
 
@@ -140,6 +145,7 @@ module.exports = {
       });
 
       player.on(AudioPlayerStatus.Idle, () => {
+        console.log("Player is idle");
         const shiffed = queue.songs.shift();
 
         if (queue.loop === true) {
@@ -149,29 +155,26 @@ module.exports = {
         play(queue.songs[0], true);
       });
 
+      console.log("Playing song");
       player.play(resource);
       queue.connection.subscribe(player);
 
       const songEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
-        .setTitle(`${song.title}`)
+        .setTitle(`${song.title} (${song.timestamp})`)
         .setURL(`${song.url}`)
         .setAuthor({
-          name: "Морген Штерн",
-          iconURL: song.img,
-          url: song.img,
+          name: "MorgenMusic",
+          iconURL:
+            "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/84607b7926420b1e26d154aad4d4aff2.jpg",
         })
-        .setDescription(`${song.duration.slice(song.duration.indexOf("("))}`)
-        .setThumbnail(song.img)
-        .addFields(
-          { name: "Views", value: song.views },
-          { name: "\u200B", value: "\u200B" }
-        )
+        .setDescription(`Views: ${song.views}`)
         .setImage(song.img)
         .setTimestamp()
         .setFooter({
-          text: "Найс музычка",
-          iconURL: song.img,
+          text: "MorgenMusic",
+          iconURL:
+            "https://raw.githubusercontent.com/InsanEagle/Discord-MorgenMusic-Bot/main/img/84607b7926420b1e26d154aad4d4aff2.jpg",
         });
 
       if (!followUp) {
