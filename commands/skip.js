@@ -11,7 +11,7 @@ module.exports = {
     let channel = await interaction.member.voice.channel;
     if (!channel) {
       sendError(
-        "I'm sorry but you need to be in a voice channel to play music!",
+        "I'm sorry but you need to be in a voice channel to use bot's commands",
         interaction
       );
       return;
@@ -27,6 +27,9 @@ module.exports = {
     }
 
     let player = await serverQueue.player;
+    if (!serverQueue.playing) {
+      await player.unpause();
+    }
     await player.stop();
     let embed = new EmbedBuilder()
       .setColor("0x0099ff")

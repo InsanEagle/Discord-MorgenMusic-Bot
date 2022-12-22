@@ -11,7 +11,7 @@ module.exports = {
     let channel = await interaction.member.voice.channel;
     if (!channel) {
       sendError(
-        "I'm sorry but you need to be in a voice channel to play music!",
+        "I'm sorry but you need to be in a voice channel to use bot's commands",
         interaction
       );
       return;

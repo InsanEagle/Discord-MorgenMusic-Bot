@@ -9,6 +9,7 @@ const {
 const ytdl = require("ytdl-core-discord");
 const sendError = require("../error/error");
 const yts = require("yt-search");
+const ytsr = require("ytsr");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -28,7 +29,7 @@ module.exports = {
 
     if (!channel) {
       sendError(
-        "I'm sorry but you need to be in a voice channel to play music!",
+        "I'm sorry but you need to be in a voice channel to use bot's commands",
         interaction
       );
       return;
@@ -40,6 +41,9 @@ module.exports = {
     let searched;
     try {
       searched = await yts.search(songname);
+      // const ybQuery = await ytsr.getFilters(songname);
+      // const type = ybQuery.get("Type").get("Video");
+      // searched = await ytsr(type.url, { limit: 1 });
     } catch {
       sendError(`Couldn't find a song. Try again`, interaction);
       return;
@@ -53,10 +57,19 @@ module.exports = {
       return;
     }
 
+    // if (searched.items.length === 0) {
+    //   sendError(
+    //     "Looks like i was unable to find the song on YouTube",
+    //     interaction
+    //   );
+    //   return;
+    // }
+
     let song = null;
     let songInfo = null;
 
     songInfo = searched.videos[0];
+    // songInfo = searched.items[0];
 
     song = {
       id: songInfo.videoId,
@@ -71,6 +84,18 @@ module.exports = {
       img: songInfo.image,
       req: interaction.member,
     };
+
+    // song = {
+    //   id: songInfo.id,
+    //   title: songInfo.title,
+    //   views: String(songInfo.views)
+    //     .padStart(10, " ")
+    //     .replace(/\B(?=(\d{3})+(?!\d))/g, " "),
+    //   url: songInfo.url,
+    //   ago: songInfo.ago,
+    //   duration: songInfo.duration.toString(),
+    //   req: interaction.member,
+    // };
 
     if (serverQueue) {
       serverQueue.songs.push(song);
@@ -181,6 +206,7 @@ module.exports = {
       const songEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
         .setTitle(`${song.title} (${song.timestamp})`)
+        // .setTitle(`${song.title} (${song.duration})`)
         .setURL(`${song.url}`)
         .setDescription(`Views: ${song.views}`)
         .setImage(song.img)
