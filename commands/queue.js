@@ -29,7 +29,7 @@ module.exports = {
     for (let i = 0; i < queueLength; i++) {
       queue.push(
         `**${i + 1}** — ${serverQueue.songs[i].title} **(${
-          serverQueue.songs[i].timestamp
+          serverQueue.songs[i].duration
         })**`
       );
     }

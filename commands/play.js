@@ -8,8 +8,8 @@ const {
 } = require("@discordjs/voice");
 const ytdl = require("ytdl-core-discord");
 const sendError = require("../error/error");
-const yts = require("yt-search");
-const ytsr = require("ytsr");
+const getData = require("../puppeteer_parser/getData");
+const dataParse = require("../puppeteer_parser/dataParse");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -39,17 +39,16 @@ module.exports = {
     console.log(`Searching song at server: ${interaction.guild.id}`);
 
     let searched;
+
     try {
-      searched = await yts.search(songname);
-      // const ybQuery = await ytsr.getFilters(songname);
-      // const type = ybQuery.get("Type").get("Video");
-      // searched = await ytsr(type.url, { limit: 1 });
+      const rawHTML = await getData(songname);
+      searched = await dataParse(rawHTML);
     } catch {
       sendError(`Couldn't find a song. Try again`, interaction);
       return;
     }
 
-    if (searched.videos.length === 0) {
+    if (Object.keys(searched).length === 0) {
       sendError(
         "Looks like i was unable to find the song on YouTube",
         interaction
@@ -57,45 +56,25 @@ module.exports = {
       return;
     }
 
-    // if (searched.items.length === 0) {
-    //   sendError(
-    //     "Looks like i was unable to find the song on YouTube",
-    //     interaction
-    //   );
-    //   return;
-    // }
-
     let song = null;
     let songInfo = null;
 
-    songInfo = searched.videos[0];
-    // songInfo = searched.items[0];
+    songInfo = searched[0];
 
     song = {
-      id: songInfo.videoId,
+      // id: songInfo.id.videoId,
       title: songInfo.title,
-      views: String(songInfo.views)
-        .padStart(10, " ")
-        .replace(/\B(?=(\d{3})+(?!\d))/g, " "),
+      // views: additionalInfo.items[0].statistics.viewCount.replace(
+      //   /\B(?=(\d{3})+(?!\d))/g,
+      //   " "
+      // ),
       url: songInfo.url,
-      ago: songInfo.ago,
-      duration: songInfo.duration.toString(),
-      timestamp: songInfo.timestamp,
-      img: songInfo.image,
+      // ago: songInfo.snippet.publishedAt,
+      duration: songInfo.duration,
+      // timestamp: songInfo.timestamp,
+      // img: additionalInfo.items[0].snippet.thumbnails.maxres.url,
       req: interaction.member,
     };
-
-    // song = {
-    //   id: songInfo.id,
-    //   title: songInfo.title,
-    //   views: String(songInfo.views)
-    //     .padStart(10, " ")
-    //     .replace(/\B(?=(\d{3})+(?!\d))/g, " "),
-    //   url: songInfo.url,
-    //   ago: songInfo.ago,
-    //   duration: songInfo.duration.toString(),
-    //   req: interaction.member,
-    // };
 
     if (serverQueue) {
       serverQueue.songs.push(song);
@@ -148,6 +127,8 @@ module.exports = {
 
       try {
         console.log(`Creating audio stream at server: ${interaction.guild.id}`);
+        console.log(`Audio stream url: ${song.url}`);
+
         stream = await ytdl(song.url, {
           quality: "highestaudio",
 
@@ -205,11 +186,10 @@ module.exports = {
 
       const songEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
-        .setTitle(`${song.title} (${song.timestamp})`)
-        // .setTitle(`${song.title} (${song.duration})`)
+        .setTitle(`${song.title} (${song.duration})`)
         .setURL(`${song.url}`)
-        .setDescription(`Views: ${song.views}`)
-        .setImage(song.img)
+        // .setDescription(`Views: ${song.views}`)
+        // .setImage(song.img)
         .setTimestamp()
         .setFooter({
           text: "MorgenMusic",

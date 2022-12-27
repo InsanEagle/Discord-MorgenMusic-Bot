@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
 const { token } = require("./config.json");
+const openBrowser = require("./puppeteer_parser/openBrowser");
 
 // Creating client instance
 const client = new Client({
@@ -11,6 +12,8 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
   ],
 });
+
+openBrowser();
 
 // Get every event file
 const eventsPath = path.join(__dirname, "events");
